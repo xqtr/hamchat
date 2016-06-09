@@ -13,11 +13,14 @@ Windows,
   {$ENDIF}
 fldigi,
 xmlrpc,
+RegExpr,
 //unix,
 //unixutil,
 httpsend,
+md5,
 //process,
 fptimer,
+clipbrd,
 m_types,
 f_Strings,
 f_Output,
@@ -36,6 +39,13 @@ strutils,
 classes,
 config,
 custapp;
+
+{Function B64Encode   (S: String) : String;  
+Function B64Decode     (S: String) : String;
+Function HMAC_MD5      (Text, Key: String) : String;
+Function MD5           (Const Value: String) : String;
+Function Digest2String (Digest: String) : String;
+Function String2Digest (Str: String) : String;}
 
 Const 
 {$IFDEF WIN32}
@@ -89,7 +99,8 @@ Type
       padding: string;
       eot : string;
       vox_padding : string;
-      md5 : string;
+      md5_format : string;
+      time_format : string;
       
       Image  : TConsoleImageRec;
       f,d: byte;
@@ -110,8 +121,11 @@ Type
 
       Procedure displayansi(filename:String; delay:integer);
       procedure loadsettings;
+      Function parseincomingtext(mes:string):string;
       Procedure rxontimer(Sender: TObject);
       Procedure OutStr (S: String);
+      function  getmd5(mes:string):string;
+      function  gettime(mes:string):string;
       Function  transmittext(strs: String): boolean;
       Procedure centertext(strs:String; line:byte);
       Procedure writexy(x,y:integer; strs:String);
@@ -143,17 +157,21 @@ Var
 procedure tfpchamchat.loadsettings;
 begin
 	SetConfigFileName(dir+'config.xml');
-	padding := GetValueFromConfigFile('transmit','padding','//HAMCHAT//');
-	vox_padding := GetValueFromConfigFile('transmit','vox_padding','//ALPHA-BRAVO-ECHO-DELTA');
-	eot := GetValueFromConfigFile('transmit','eot','//EOT//');
+	padding := GetValueFromConfigFile('transmit','padding','/HAMCHAT/');
+	vox_padding := GetValueFromConfigFile('transmit','vox_padding','/ALPHA-BRAVO-ECHO-DELTA/');
+	eot := GetValueFromConfigFile('transmit','EOT','//EOT//');
+	md5_format := GetValueFromConfigFile('transmit','md5_format','/MD5:%s/');
+	time_format:=GetValueFromConfigFile('transmit','time_format','/TIME:%s//');
 end;
 
 procedure tfpchamchat.createconfig;
 begin
 	setconfigfilename(dir+'config.xml');
-	SaveValueToConfigFile('transmit','padding','//HAMCHAT//');
-	SaveValueToConfigFile('transmit','EOT','//END//');
-	SaveValueToConfigFile('transmit','vox_padding','//ALPHA-BRAVO-ECHO-DELTA');
+	SaveValueToConfigFile('transmit','padding','/HAMCHAT/');
+	SaveValueToConfigFile('transmit','EOT','//EOT//');
+	SaveValueToConfigFile('transmit','vox_padding','/ALPHA-BRAVO-ECHO-DELTA');
+	SaveValueToConfigFile('transmit','md5_format','/MD5:%s/');
+	SaveValueToConfigFile('transmit','time_format','/TIME:%s//');
 end;
 
 Function pathchar(path:utf8string): utf8string;
@@ -354,8 +372,11 @@ Function tfpchamchat.transmittext(strs: String): boolean;
 Var 
   tmp: string;
   i: integer;
+  hash: string;
 Begin
-  tmp := vox_padding+padding+strs+eot+'^r';
+  tmp:=format(time_format,[inttostr(CurDateDos)])+strs;
+  hash:=MD5print(MD5String(tmp));
+  tmp := vox_padding+padding+format(md5_format,[hash])+tmp+eot+'^r';
   Fldigi_ClearTx;
   i := 1;
   //disablewhiletransmit(true);
@@ -370,12 +391,55 @@ Begin
   //Fldigi_StopTx;
 End;
 
+Function tfpchamchat.parseincomingtext(mes:string):string;
+var 
+  i:integer;
+  incoming:string;
+begin
+   i:=pos(lowercase(eot),lowercase(mes));     
+   if i>0 then begin
+     incoming:=copy(mes,1,i-1);
+     parsebuf:='';
+     Fldigi_Clearrx;
+   end;
+   i:=pos(lowercase(padding),lowercase(incoming));     
+   if i>0 then begin
+     incoming:=copy(incoming,i+length(padding),length(incoming)-i-length(padding)+1);
+     //delete(parsebuf,1,length(padding));
+   end;
+   rxbuf:='';
+   result:=incoming;
+end;
+
+function tfpchamchat.getmd5(mes:string):string;
+var
+  RegexObj: TRegExpr;
+begin
+  RegexObj := TRegExpr.Create;
+  RegexObj.Expression := '([A-F]|[0-9]){32}';
+  RegexObj.Exec(uppercase(mes));
+  result:=uppercase(regexobj.match[0]);
+  RegexObj.Free;
+end;
+
+function tfpchamchat.gettime(mes:string):string;
+var
+  RegexObj: TRegExpr;
+begin
+  RegexObj := TRegExpr.Create;
+  RegexObj.Expression := '[0-9]{10}';
+  RegexObj.Exec(mes);
+  result:=regexobj.match[0];
+  RegexObj.Free;
+end;
+
 Procedure tfpchamchat.rxonTimer(Sender : TObject);
 
 Var 
   Dd : TDateTime;
   rxc: char;
   i:integer;
+  s:string;
 
 Begin
   Dd := Now-N;
@@ -391,13 +455,10 @@ Begin
           else if rxc >= #32 then
             parsebuf := parsebuf + rxc;
         end;
-   i:=pos(lowercase(eot),lowercase(rxbuf));     
-   if i>0 then begin
-     parsebuf:=copy(rxbuf,1,i-1);
-     rxbuf:='';
-     Fldigi_Clearrx;
-   end;
-   writeln(parsebuf);
+   s:=parseincomingtext(parsebuf);
+   writeln(s);
+   writeln('MD5:'+getmd5(s));
+   writeln('Time:'+gettime(s));
 End;
 
 Procedure tfpchamchat.DoRun;
@@ -417,7 +478,7 @@ Begin
   loadsettings;
   
   rxtimer := TFPTimer.Create(self);
-  rxtimer.interval := 500;
+  rxtimer.interval := 400;
   rxtimer.ontimer := @rxonTimer;
   rxtimer.starttimer;
   Try
@@ -425,6 +486,7 @@ Begin
     FCount := 0;
     N := Now;
     Repeat
+	  //if keypressed then begin
       c := readkey;
       If c='f' Then
         Begin
@@ -432,6 +494,7 @@ Begin
           Else writeln('Fldigi not running');
         End
       Else transmittext('hello');
+		//end;
       Sleep(1);
       CheckSynchronize;
       // Needed, because we are not running in a GUI loop.
