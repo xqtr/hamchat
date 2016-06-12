@@ -133,6 +133,7 @@ procedure Fldigi_ChangeCarrier( increment: integer );
 
 function Fldigi_GetMode: string;
 procedure Fldigi_SetMode( mode: string );
+procedure Fldigi_SetModex( mode: string );
 function Fldigi_ListModes: string;
 function Fldigi_GetBandwidth: integer;
 
@@ -293,6 +294,11 @@ begin
   until p = 0;
 end;
 
+procedure Fldigi_SetModex( mode: string );
+begin
+	RequestStr(fl_host,'modem.set_by_name',mode,false);
+end;
+
 procedure Fldigi_SetMode( mode: string );
 var
   p,t,f: integer;
@@ -315,7 +321,7 @@ begin
         if n = '16' then
           m := 'MFSK16'
         else
-          m := 'MFSK-'+n;
+          m := 'MFSK'+n;
       end;
   5:  begin
         m := 'OLIVIA';
@@ -347,6 +353,7 @@ begin
         else
           m := 'DomX'+n;
       end;
+      else m:=mode;
   end;
   RequestStr(fl_host,'modem.set_by_name',m,false);
   if m = 'OLIVIA' then

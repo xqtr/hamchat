@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CONFIG>
+  <transmit>
+    <padding Value="/HAMCHAT/"/>
+    <EOT Value="//EOT//"/>
+    <vox_padding Value="/ALPHA-BRAVO-ECHO-DELTA"/>
+    <md5_format Value="/MD5:%s/"/>
+    <time_format Value="/TIME:%s//"/>
+  </transmit>
+</CONFIG>
