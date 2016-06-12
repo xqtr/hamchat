@@ -6,5 +6,19 @@
     <vox_padding Value="/ALPHA-BRAVO-ECHO-DELTA"/>
     <md5_format Value="/MD5:%s/"/>
     <time_format Value="/TIME:%s//"/>
+    <modem Value="QPSK500"/>
+    <encrypt Value="No"/>
   </transmit>
+  <user>
+    <id Value="xqtr"/>
+    <groupid/>
+    <key Value="howdythere"/>
+  </user>
+  <trasmit>
+    <encrypt Value="Yes"/>
+  </trasmit>
+  <options>
+    <inbox_reccount Value="20"/>
+    <outbox_reccount Value="10"/>
+  </options>
 </CONFIG>

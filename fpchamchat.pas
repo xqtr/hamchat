@@ -46,6 +46,7 @@ classes,
 config,
 custapp;
 
+
 {Function B64Encode   (S: String) : String;  
 Function B64Decode     (S: String) : String;
 Function HMAC_MD5      (Text, Key: String) : String;
@@ -54,15 +55,15 @@ Function Digest2String (Digest: String) : String;
 Function String2Digest (Str: String) : String;}
 
 Const 
-	Field = 79;
-	ffg = yellow;
-	fbg = blue;
-	fselbg = blue;
-	fselfg = white;
-	attr = ffg+fbg*16;
-	len = 250;
-	mode = 1;
-	
+  Field = 79;
+  ffg = yellow;
+  fbg = blue;
+  fselbg = blue;
+  fselfg = white;
+  attr = ffg+fbg*16;
+  len = 250;
+  mode = 1;
+
 {$IFDEF WIN32}
   PathSep = '\';
   CRLF = #13#10;
@@ -96,16 +97,16 @@ Const
 
 Type 
 
-	THCMessage=record
-		md5:string;
-		msg:string;
-		from:string;
-		msgto:string;
-		group:string;
-		time:string;
-		decoded:string;
-		encode: boolean;
-	end;
+  THCMessage = Record
+    md5: string;
+    msg: string;
+    from: string;
+    msgto: string;
+    group: string;
+    time: string;
+    decoded: string;
+    encode: boolean;
+  End;
   Tfpchamchat = Class(TCustomApplication)
     Private 
       Code     : String[2];
@@ -128,31 +129,34 @@ Type
       md5_format : string;
       time_format : string;
       userid: string;
+      touserid: string;
       groupid: string;
-      modem:string;
-      key:string;
-      encrypt:string;
-      lastmd5:string;
-      storemsg:boolean;
+      modem: string;
+      key: string;
+      encrypt: string;
+      lastmd5: string;
+      storemsg: boolean;
       FillChar : Char;
-      isexit:boolean;
-      
-      
-  StrPos : Integer;
-  Junk   : Integer;
-  CurPos : Integer;
-  autostr:string;
-  flist    : tstringlist;
-  auto:boolean;
-  fcase:boolean;
-  x,y:integer;
-  bb:tbox;
-  ExitCode : Char;
-  LoChars :string;
-    HiChars :string;
-  
-	  textinput: tdmenuinput;
-	  command:string;
+      isexit: boolean;
+      inrec:integer;
+      outrec:integer;
+
+
+      StrPos : Integer;
+      Junk   : Integer;
+      CurPos : Integer;
+      autostr: string;
+      flist    : tstringlist;
+      auto: boolean;
+      fcase: boolean;
+      x,y: integer;
+      bb: tbox;
+      ExitCode : Char;
+      LoChars : string;
+      HiChars : string;
+
+      textinput: tdmenuinput;
+      command: string;
       Image  : TConsoleImageRec;
       HideImage  : ^TConsoleImageRec;
       f,d: byte;
@@ -172,41 +176,46 @@ Type
       Terminal : TTermAnsi;
 
       Procedure displayansi(filename:String; delay:integer);
-      procedure loadsettings;
-      Function parseincomingtext(mes:string):string;
+      Procedure helpscreen;
+      Procedure loadsettings;
+      Function parseincomingtext(mes:String): string;
       Procedure rxontimer(Sender: TObject);
       Procedure OutStr (S: String);
-      function  getmd5(mes:string):string;
-      function  gettime(mes:string):string;
+      Function  getmd5(mes:String): string;
+      Procedure optionsmenu;
+      Function  gettime(mes:String): string;
       Function  transmittext(strs: String): boolean;
       Procedure centertext(strs:String; line:byte);
       Procedure writexy(x1,y1:integer; strs:String);
       Procedure enable_ansi_unix;
       Function  Ansi_Color (B : Byte) : String;
-      procedure createconfig;
+      Procedure createconfig;
       Function  GetChar : Char;
-      procedure show;
-      procedure hide;
-      procedure menu;
-      procedure appmenu;
-      procedure modemmenu;
-      Procedure bottomline(s:string);
-      procedure appendmsg(s:string);
-      procedure appendincoming(s:string);
-      Function blowEn(s,keys:string):string;
-      Function blowDe(s,keys:string):string;
-      procedure fldigimenu;
+      Procedure show;
+      Procedure hide;
+      procedure trimfilerec(filename:string; i:integer);
+      Procedure menu;
+      Procedure appmenu;
+      Procedure modemmenu;
+      Procedure bottomline(s:String);
+      Procedure appendmsg(s:String);
+      Procedure appendincoming(s:String);
+      Function blowEn(s,keys:String): string;
+      Function blowDe(s,keys:String): string;
+      Procedure fldigimenu;
       Procedure ReDraw;
       Procedure ReDrawPart;
       Procedure ScrollRight;
-       Procedure ScrollLeft;
-       procedure endkeyf;
-       Procedure Add_Char (Chr : Char);
-      Procedure DoRun; override;
+      Procedure ScrollLeft;
+      Procedure endkeyf;
+      Procedure Add_Char (Chr : Char);
+      Procedure DoRun;
+      override;
   End;
 
 Var 
   hamchat : tfpchamchat;
+
 
 
 {	
@@ -221,350 +230,505 @@ Var
 	</methodCall>
 
 }
-procedure tfpchamchat.loadsettings;
-begin
-	SetConfigFileName(dir+'config.xml');
-	padding := GetValueFromConfigFile('transmit','padding','/HAMCHAT/');
-	vox_padding := GetValueFromConfigFile('transmit','vox_padding','/ALPHA-BRAVO-ECHO-DELTA/');
-	eot := GetValueFromConfigFile('transmit','EOT','//EOT//');
-	md5_format := GetValueFromConfigFile('transmit','md5_format','/MD5:%s/');
-	time_format:=GetValueFromConfigFile('transmit','time_format','/TIME:%s//');
-	userid:=getValuefromConfigFile('user','id','Unknown');
-	groupid:=getValuefromConfigFile('user','groupid','');
-	modem:=getValuefromConfigFile('transmit','modem','QPSK31');
-	key:=getValuefromConfigFile('user','key','temp');
-	encrypt:=getValuefromConfigFile('transmit','encrypt','No');
-	if getValuefromConfigFile('options','store_messages','yes')='yes' then storemsg:=true else storemsg:=false;
-	if fldigi_isrunning then begin
-		Fldigi_AbortTx;
-		Fldigi_SetModex(modem);
-		Fldigi_ClearRx;
-		Fldigi_ClearTx;
-	end;
-	if (lowercase(modem)='rtty') and (lowercase(encrypt)='yes') then begin
-		    addshadow(screen,25,10,30,4,darkgray+darkgray*16);
-			textbox(screen,25,10,30,4,yellow+red*16,4,'Warning!','Encryption cannot work with the RTTY protocol!');
-			end;
-	lastmd5:='';
-	command:='';
-	FillChar := ' ';
-	autostr:='';
-	auto:=false;
-	fcase:=false;
-	x:=1;
-	y:=screenheight-1;
-	LoChars  := #13;
-    HiChars  := '';
-	
-end;
-
-procedure tfpchamchat.createconfig;
-begin
-	setconfigfilename(dir+'config.xml');
-	SaveValueToConfigFile('transmit','padding','/HAMCHAT/');
-	SaveValueToConfigFile('transmit','EOT','//EOT//');
-	SaveValueToConfigFile('transmit','vox_padding','/ALPHA-BRAVO-ECHO-DELTA');
-	SaveValueToConfigFile('transmit','md5_format','/MD5:%s/');
-	SaveValueToConfigFile('transmit','time_format','/TIME:%s//');
-	SaveValueToConfigFile('user','id','Unknown');
-	SaveValueToConfigFile('user','groupid','');
-	SaveValueToConfigFile('user','key','temp');
-	SaveValueToConfigFile('transmit','modem','QPSK31');
-	SaveValueToConfigFile('transmit','encrypt','No');
-	
-end;
-
-Function tfpchamchat.blowEn(s,keys:string):string;
+procedure tfpchamchat.trimfilerec(filename:string; i:integer);
 var
+  sl:tstringlist;
+begin
+  if not fileexists(filename) then exit;
+  sl:=tstringlist.create;
+  sl.loadfromfile(filename);
+  while sl.count > i do begin
+    sl.delete(0);
+  end;
+  sl.savetofile(filename);
+  sl.free;
+end;
+
+Procedure tfpchamchat.helpscreen;
+Begin
+  writeln;
+  writeln('Hamchat - Chat with ham radio... ');
+  writeln;
+  writeln('Usage:');
+  writeln;
+  writeln('  hamchat [-c] [-t<touser>] [-e<yes/no>] [-u<fromuser>] [-g<togroup>]'+
+          ' [-m<modem_type>] [-k<encode_key>] [Text to trasmit]');
+  writeln;
+  writeln('Options:');
+  writeln;
+  writeln('-c : Create config file template');
+  writeln('-t<touser>     : username of receiver');
+  writeln('-e<yes/no>     : encode message. Yes or No');
+  writeln('-u<fromuser>   : username of sender');
+  writeln('-g<togroup>    : group to receive message');
+  writeln('-m<modem_type> : modem type');
+  writeln('-k<encode_key> : encryption key to use');
+  writeln;
+  writeln('Examples:');
+  writeln;
+  writeln('hamchat');
+  writeln('  Will run the program with UI');
+  writeln('hamchat -c');
+  writeln('  Create config file template');
+  writeln('hamchat -umyname "Hello world"');
+  writeln('  Set the sender name as myname and send the message "Hello world"');
+  writeln('hamchat -h');
+  writeln('  This help screen');
+  writeln;
+End;
+
+Procedure tfpchamchat.loadsettings;
+Begin
+  SetConfigFileName(dir+'config.xml');
+  padding := GetValueFromConfigFile('transmit','padding','/HAMCHAT/');
+  vox_padding := GetValueFromConfigFile('transmit','vox_padding','/ALPHA-BRAVO-ECHO-DELTA/');
+  eot := GetValueFromConfigFile('transmit','EOT','//EOT//');
+  md5_format := GetValueFromConfigFile('transmit','md5_format','/MD5:%s/');
+  time_format := GetValueFromConfigFile('transmit','time_format','/TIME:%s//');
+  userid := getValuefromConfigFile('user','id','Unknown');
+  groupid := getValuefromConfigFile('user','groupid','');
+  modem := getValuefromConfigFile('transmit','modem','QPSK31');
+  key := getValuefromConfigFile('user','key','temp');
+  encrypt := getValuefromConfigFile('transmit','encrypt','No');
+  inrec:=strs2i(getValuefromConfigFile('options','inbox_reccount','10'));
+  outrec:=strs2i(getValuefromConfigFile('options','outbox_reccount','10'));
+  If getValuefromConfigFile('options','store_messages','yes')='yes' Then storemsg := true
+  Else storemsg := false;
+  If fldigi_isrunning Then
+    Begin
+      Fldigi_AbortTx;
+      Fldigi_SetModex(modem);
+      Fldigi_ClearRx;
+      Fldigi_ClearTx;
+    End;
+  If (lowercase(modem)='rtty') And (lowercase(encrypt)='yes') Then
+    Begin
+      addshadow(screen,25,10,30,4,darkgray+darkgray*16);
+      textbox(screen,25,10,30,4,yellow+red*16,4,'Warning!',
+              'Encryption cannot work with the RTTY protocol!');
+    End;
+  lastmd5 := '';
+  command := '';
+  FillChar := ' ';
+  autostr := '';
+  auto := false;
+  fcase := false;
+  x := 1;
+  y := screenheight-1;
+  LoChars  := #13;
+  HiChars  := '';
+  touserid := '';
+
+End;
+
+Procedure tfpchamchat.createconfig;
+Begin
+  setconfigfilename(dir+'config.xml');
+  SaveValueToConfigFile('transmit','padding','/HAMCHAT/');
+  SaveValueToConfigFile('transmit','EOT','//EOT//');
+  SaveValueToConfigFile('transmit','vox_padding','/ALPHA-BRAVO-ECHO-DELTA');
+  SaveValueToConfigFile('transmit','md5_format','/MD5:%s/');
+  SaveValueToConfigFile('transmit','time_format','/TIME:%s//');
+  SaveValueToConfigFile('user','id','Unknown');
+  SaveValueToConfigFile('user','groupid','');
+  SaveValueToConfigFile('user','key','temp');
+  SaveValueToConfigFile('transmit','modem','QPSK31');
+  SaveValueToConfigFile('transmit','encrypt','No');
+  SaveValueToConfigFile('options','inbox_reccount','10');
+  SaveValueToConfigFile('options','outbox_reccount','10');
+
+End;
+
+Function tfpchamchat.blowEn(s,keys:String): string;
+
+Var 
   en: TBlowFishEncryptStream;
   s1: TStringStream;
   value,temp: String;
-begin
+Begin
   s1 := TStringStream.Create('');
   en := TBlowFishEncryptStream.Create(keys,s1);
   en.WriteAnsiString(s);
   en.Free;
   //WriteLn('encrypted: ' + s1.DataString);
-  result:=s1.DataString;
+  result := s1.DataString;
   s1.Free;
-end;
+End;
 
-Function tfpchamchat.blowDe(s,keys:string):string;
-var
+Function tfpchamchat.blowDe(s,keys:String): string;
+
+Var 
   de: TBlowFishDeCryptStream;
   s2: TStringStream;
   temp: String;
-begin
+Begin
   s2 := TStringStream.Create(s);
   de := TBlowFishDeCryptStream.Create(keys,s2);
   temp := de.ReadAnsiString;
-  result:=temp;
+  result := temp;
   de.Free;
   s2.Free;
-end;
+End;
 
-procedure tfpchamchat.fldigimenu;
-var
-  am:tmenuline_ver;
-begin
-  am:=tmenuline_ver.create(screen);
-  with am do begin
-  fg:=black;
-  bg:=white;
-  selfg:=yellow;
-  selbg:=blue;
-  shadow:=false;
-  add(' Abort    ','','','','abort','A',true,false);
-  add(' Clear Rx ','','','','rx','C',true,false);
-  add(' Clear Tx ','','','','tx','C',true,false);
-  add(' Ver. '+Fldigi_GetVersion,'','','','','',true,false);
-  end;
+Procedure tfpchamchat.fldigimenu;
+
+Var 
+  am: tmenuline_ver;
+Begin
+  am := tmenuline_ver.create(screen);
+  With am Do
+    Begin
+      fg := black;
+      bg := white;
+      selfg := yellow;
+      selbg := blue;
+      shadow := false;
+      add(' Abort    ','','','','abort','A',true,false);
+      add(' Clear Rx ','','','','rx','C',true,false);
+      add(' Clear Tx ','','','','tx','C',true,false);
+      add(' Ver. '+Fldigi_GetVersion,'','','','','',true,false);
+    End;
   simplebox(screen,15,10,18,5,blue+lightgray*16,4);
   addshadow(screen,15,10,18,5,darkgray+darkgray*16);
   am.open(16,10);
-  case am.result of
-       'abort': Fldigi_AbortTx;
-       'rx': Fldigi_ClearRx;
-       'tx': Fldigi_Cleartx;
-   end;
-   am.destroy;
-end;
-
-procedure tfpchamchat.appendmsg(s:string);
-var
-  tfOut: TextFile;
-begin
-  if storemsg=false then exit;
-  AssignFile(tfOut, dir+'outbox.txt');
-  try
-	if fileexists(dir+'outbox.txt') then append(tfOut) else rewrite(tfout);
-    writeln(tfOut, s);
-    CloseFile(tfOut);
-  except
-    on E: EInOutError do
-    writeln('File handling error occurred. Details: ', E.Message);
-  end;
-end;
-
-procedure tfpchamchat.appendincoming(s:string);
-var
-  tfOut: TextFile;
-begin
-  if storemsg=false then exit;
-  AssignFile(tfOut, dir+'inbox.txt');
-  try
-	if fileexists(dir+'inbox.txt') then append(tfOut) else rewrite(tfout);
-    writeln(tfOut, s);
-    CloseFile(tfOut);
-  except
-    on E: EInOutError do
-    writeln('File handling error occurred. Details: ', E.Message);
-  end;
-end;
-
-procedure tfpchamchat.show;
-begin
- If Assigned (HideImage) Then Begin
-    screen.PutScreenImage(HideImage^);
-    FreeMem (HideImage, SizeOf(TConsoleImageRec));
-    HideImage := NIL;
+  Case am.result Of 
+    'abort': Fldigi_AbortTx;
+    'rx': Fldigi_ClearRx;
+    'tx': Fldigi_Cleartx;
   End;
-end;
+  am.destroy;
+End;
 
-procedure tfpchamchat.hide;
-begin
-If Assigned(HideImage) Then FreeMem(HideImage, SizeOf(TConsoleImageRec));
+Procedure tfpchamchat.optionsmenu;
+Var 
+  am: tmenuline_ver;
+  mi: tmenuinput;
+  img: TConsoleImageRec;
+Begin
+  am := tmenuline_ver.create(screen);
+ 
+  With am Do
+    Begin
+      fg := black;
+      bg := white;
+      selfg := yellow;
+      selbg := blue;
+      shadow := false;
+      add(' Inbox Records  ','','','','inrec','I',true,false);
+      add(' Outbox Records  ','','','','outrec','O',true,false);
+    End;
+    repeat
+  simplebox(screen,15,9,22,5,blue+lightgray*16,4);
+  addshadow(screen,15,9,22,5,darkgray+darkgray*16);
+  am.open(16,9);
+  
+  Case am.result Of 
+    'inrec': Begin
+			  screen.GetScreenImage(1,1,screenwidth,screenheight,img);
+              simplebox(screen,9,8,30,2,red+lightgray*16,4);
+              addshadow(screen,9,8,30,2,darkgray+darkgray*16);
+              screen.writexy(11,9,black+lightgray*16,'Inbox Records count: ');
+              mi := TMenuInput.create(screen);
+              mi.fg := yellow;
+              mi.bg := red;
+              inrec := mi.getnum (32, 9, 3, 3, 1,500,inrec);
+              SaveValueToConfigFile('options','inbox_reccount',inrec);
+              mi.Destroy;
+              screen.putscreenimage(img);
+            End;
+    'outrec': Begin
+			  screen.GetScreenImage(1,1,screenwidth,screenheight,img);
+              simplebox(screen,9,8,30,2,red+lightgray*16,4);
+              addshadow(screen,9,8,30,2,darkgray+darkgray*16);
+              screen.writexy(11,9,black+lightgray*16,'Outbox Records count: ');
+              mi := TMenuInput.create(screen);
+              mi.fg := yellow;
+              mi.bg := red;
+              outrec := mi.getnum (32, 9, 3, 3, 1,500,10);
+              SaveValueToConfigFile('options','outbox_reccount',outrec);
+              mi.Destroy;
+              screen.putscreenimage(img);
+            End;
+  End;
+  until am.result='-1';
+  am.destroy;
+End;
+
+Procedure tfpchamchat.appendmsg(s:String);
+
+Var 
+  tfOut: TextFile;
+Begin
+  If storemsg=false Then exit;
+  AssignFile(tfOut, dir+'outbox.txt');
+  Try
+    If fileexists(dir+'outbox.txt') Then append(tfOut)
+    Else rewrite(tfout);
+    writeln(tfOut, s);
+    CloseFile(tfOut);
+  Except
+    on E: EInOutError Do
+          writeln('File handling error occurred. Details: ', E.Message);
+	End;
+trimfilerec(dir+'outbox.txt',outrec);
+End;
+
+Procedure tfpchamchat.appendincoming(s:String);
+
+Var 
+  tfOut: TextFile;
+Begin
+  If storemsg=false Then exit;
+  AssignFile(tfOut, dir+'inbox.txt');
+  Try
+    If fileexists(dir+'inbox.txt') Then append(tfOut)
+    Else rewrite(tfout);
+    writeln(tfOut, s);
+    CloseFile(tfOut);
+  Except
+    on E: EInOutError Do
+          writeln('File handling error occurred. Details: ', E.Message);
+	End;
+	trimfilerec(dir+'inbox.txt',inrec);
+End;
+
+Procedure tfpchamchat.show;
+Begin
+  If Assigned (HideImage) Then
+    Begin
+      screen.PutScreenImage(HideImage^);
+      FreeMem (HideImage, SizeOf(TConsoleImageRec));
+      HideImage := Nil;
+    End;
+End;
+
+Procedure tfpchamchat.hide;
+Begin
+  If Assigned(HideImage) Then FreeMem(HideImage, SizeOf(TConsoleImageRec));
 
   GetMem (HideImage, SizeOf(TConsoleImageRec));
 
   screen.GetScreenImage (Image.X1, Image.Y1, Image.X2, Image.Y2, HideImage^);
   screen.PutScreenImage (Image);
-end;
+End;
 
-Procedure tfpchamchat.bottomline(s:string);
-var
-  xx:string;
-begin
-screen.WriteXYPipe(1,screenheight,yellow+red*16,screenwidth,s);
-//x:='| '+modem;
-if fldigiisrunning then xx:='| Fldigi: '+Fldigi_GetMode
-	else xx:='| '+modem;
-if lowercase(encrypt)='yes' then xx:='| Encrypt! '+xx;
+Procedure tfpchamchat.bottomline(s:String);
 
-screen.WriteXYPipe(screenwidth-length(xx),screenheight,yellow+red*16,length(xx),xx);
-end;
+Var 
+  xx: string;
+Begin
+  screen.WriteXYPipe(1,screenheight,yellow+red*16,screenwidth,s);
+  //x:='| '+modem;
+  If fldigiisrunning Then xx := '| Fldigi: '+Fldigi_GetMode
+  Else xx := '| '+modem;
+  If lowercase(encrypt)='yes' Then xx := '| Encrypt! '+xx;
 
-procedure tfpchamchat.appmenu;
-var
-am:tmenuline_ver;
-mi:tmenuinput;
-begin
-	am:=tmenuline_ver.create(screen);
-	with am do begin
-  fg:=black;
-  bg:=white;
-  selfg:=yellow;
-  selbg:=blue;
-  shadow:=false;
-  add(' User           ','','','','user','U',true,false);
-  add(' Group          ','','','','group','G',true,false);
-  add(' Encryption Key ','','','','key','E',true,false);
-  add('-','','','','',' ',true,false);
-  add(' Modem          ','','','','modem','M',true,false);
-  add(' Encrypt        ','','','','encrypt','E',true,false);  
-  add(' FlDigi        ','','','','fldigi','F',true,false);  
-  add('-','','','','',' ',true,false);
-  add(' Exit  ','','','','exit','E',true,false);
-  end;
-  simplebox(screen,1,3,20,10,blue+lightgray*16,4);
-  addshadow(screen,1,3,20,10,darkgray+darkgray*16);
+  screen.WriteXYPipe(screenwidth-length(xx),screenheight,yellow+red*16,length(xx),xx);
+End;
+
+Procedure tfpchamchat.appmenu;
+
+Var 
+  am: tmenuline_ver;
+  mi: tmenuinput;
+  img: TConsoleImageRec;
+Begin
+  am := tmenuline_ver.create(screen);
+  With am Do
+    Begin
+      fg := black;
+      bg := white;
+      selfg := yellow;
+      selbg := blue;
+      shadow := false;
+      add(' User           ','','','','user','U',true,false);
+      add(' Group          ','','','','group','G',true,false);
+      add(' Encryption Key ','','','','key','E',true,false);
+      add('-','','','','',' ',true,false);
+      add(' Modem          ','','','','modem','M',true,false);
+      add(' Encrypt        ','','','','encrypt','E',true,false);
+      add(' FlDigi        ','','','','fldigi','F',true,false);
+      add('-','','','','',' ',true,false);
+      add(' Options        ','','','','options','O',true,false);
+      add('-','','','','',' ',true,false);
+      add(' Exit  ','','','','exit','E',true,false);
+    End;
+  repeat  
+  simplebox(screen,1,3,20,12,blue+lightgray*16,4);
+  addshadow(screen,1,3,20,12,darkgray+darkgray*16);
   am.open(2,3);
-  case am.result of
-       'user': begin
-		   simplebox(screen,9,8,22,3,red+lightgray*16,4);
-		   addshadow(screen,9,8,22,3,darkgray+darkgray*16);
-		   screen.writexy(15,9,black+lightgray*16,'Call Sign');
-           mi:=TMenuInput.create(screen);
-           mi.fg:=yellow;
-           mi.bg:=red;
-           userid:=mi.GetStr (10, 10, 21, 21, 1,userid);
-		   SaveValueToConfigFile('user','id',userid);
-		   mi.Destroy;
-           end;
-		'group': begin
-		   simplebox(screen,9,8,22,3,red+lightgray*16,4);
-		   addshadow(screen,9,8,22,3,darkgray+darkgray*16);
-		   screen.writexy(15,9,black+lightgray*16,'Group Name');
-           mi:=TMenuInput.create(screen);
-           mi.fg:=yellow;
-           mi.bg:=red;
-           groupid:=mi.GetStr (10, 10, 21, 21, 1,groupid);
-		   SaveValueToConfigFile('user','groupid',groupid);
-		   mi.Destroy;
-           end;           
-		'key': begin
-		   simplebox(screen,9,8,22,3,red+lightgray*16,4);
-		   addshadow(screen,9,8,22,3,darkgray+darkgray*16);
-		   screen.writexy(13,9,black+lightgray*16,'Encryption Key');
-           mi:=TMenuInput.create(screen);
-           mi.fg:=yellow;
-           mi.bg:=red;
-           key:=mi.GetStr (10, 10, 21, 21, 1,key);
-           key:=strStripL(key,' ');
-           key:=strStripR(key,' ');
-           key:=strReplace(key,' ','');
-		   SaveValueToConfigFile('user','key',key);
-		   mi.Destroy;
-           end;           
-		'encrypt': begin
-		   simplebox(screen,9,8,24,2,red+lightgray*16,4);
-		   addshadow(screen,9,8,24,2,darkgray+darkgray*16);
-		   screen.writexy(11,9,black+lightgray*16,'Use Encryption?');
-		   bottomline('Use Cursor keys to choose.');
-           mi:=TMenuInput.create(screen);
-           mi.fg:=white;
-           mi.bg:=blue;
-           if lowercase(encrypt)='yes' then encrypt:=strYN(mi.GetYN(29, 9,true)) else
-				encrypt:=strYN(mi.GetYN(29, 9,false));
-		   SaveValueToConfigFile('transmit','encrypt',encrypt);
-		   mi.Destroy;
-		   if (lowercase(modem)='rtty') and (lowercase(encrypt)='yes') then begin
-		    addshadow(screen,25,10,30,4,darkgray+darkgray*16);
-			textbox(screen,25,10,30,4,yellow+red*16,4,'Warning!','Encryption cannot work with the RTTY protocol!');
-			end;
-           end;
-        'fldigi':begin
-			fldigimenu;
-         end;
-        'exit': begin
-			isexit:=true;
-		end;
-		'modem': modemmenu;
-  end;
-end;
+  Case am.result Of 
+    'user':
+            Begin
+            screen.GetScreenImage(1,1,screenwidth,screenheight,img);
+              simplebox(screen,9,8,22,3,red+lightgray*16,4);
+              addshadow(screen,9,8,22,3,darkgray+darkgray*16);
+              screen.writexy(15,9,black+lightgray*16,'Call Sign');
+              mi := TMenuInput.create(screen);
+              mi.fg := yellow;
+              mi.bg := red;
+              userid := mi.GetStr (10, 10, 21, 21, 1,userid);
+              SaveValueToConfigFile('user','id',userid);
+              mi.Destroy;
+              screen.PutScreenImage(img);
+            End;
+    'group':
+             Begin
+             screen.GetScreenImage(1,1,screenwidth,screenheight,img);
+               simplebox(screen,9,8,22,3,red+lightgray*16,4);
+               addshadow(screen,9,8,22,3,darkgray+darkgray*16);
+               screen.writexy(15,9,black+lightgray*16,'Group Name');
+               mi := TMenuInput.create(screen);
+               mi.fg := yellow;
+               mi.bg := red;
+               groupid := mi.GetStr (10, 10, 21, 21, 1,groupid);
+               SaveValueToConfigFile('user','groupid',groupid);
+               mi.Destroy;
+               screen.PutScreenImage(img);
+             End;
+    'key':
+           Begin
+           screen.GetScreenImage(1,1,screenwidth,screenheight,img);
+             simplebox(screen,9,8,22,3,red+lightgray*16,4);
+             addshadow(screen,9,8,22,3,darkgray+darkgray*16);
+             screen.writexy(13,9,black+lightgray*16,'Encryption Key');
+             mi := TMenuInput.create(screen);
+             mi.fg := yellow;
+             mi.bg := red;
+             key := mi.GetStr (10, 10, 21, 21, 1,key);
+             key := strStripL(key,' ');
+             key := strStripR(key,' ');
+             key := strReplace(key,' ','');
+             SaveValueToConfigFile('user','key',key);
+             mi.Destroy;
+             screen.PutScreenImage(img);
+           End;
+    'encrypt': Begin
+				screen.GetScreenImage(1,1,screenwidth,screenheight,img);
+                 simplebox(screen,9,8,24,2,red+lightgray*16,4);
+                 addshadow(screen,9,8,24,2,darkgray+darkgray*16);
+                 screen.writexy(11,9,black+lightgray*16,'Use Encryption?');
+                 bottomline('Use Cursor keys to choose.');
+                 mi := TMenuInput.create(screen);
+                 mi.fg := white;
+                 mi.bg := blue;
+                 If lowercase(encrypt)='yes' Then encrypt := strYN(mi.GetYN(29, 9,true))
+                 Else
+                   encrypt := strYN(mi.GetYN(29, 9,false));
+                 SaveValueToConfigFile('transmit','encrypt',encrypt);
+                 mi.Destroy;
+                 If (lowercase(modem)='rtty') And (lowercase(encrypt)='yes') Then
+                   Begin
+                     addshadow(screen,25,10,30,4,darkgray+darkgray*16);
+                     textbox(screen,25,10,30,4,yellow+red*16,4,'Warning!',
+                             'Encryption cannot work with the RTTY protocol!');
+                   End;
+                   screen.PutScreenImage(img);
+               End;
+    'fldigi':
+              Begin
+              screen.GetScreenImage(1,1,screenwidth,screenheight,img);
+                fldigimenu;screen.PutScreenImage(img);
+              End;
+    'options': begin
+    screen.GetScreenImage(1,1,screenwidth,screenheight,img);
+     optionsmenu;screen.PutScreenImage(img);end;
+    'exit':
+            Begin
+              isexit := true;
+            End;
+    'modem': begin
+    screen.GetScreenImage(1,1,screenwidth,screenheight,img);
+     modemmenu;screen.PutScreenImage(img);end;
+  End;
+  until (am.result='-1') or (isexit=true);
+End;
 
-procedure tfpchamchat.modemmenu;
-var
-  mi:tmenuinput;
-  xi,yi:byte;
-begin
-	xi:=9;yi:=8;
-	simplebox(screen,xi,yi,22,3,red+lightgray*16,4);
-	addshadow(screen,xi,yi,22,3,darkgray+darkgray*16);
-	screen.writexy(15,yi+1,black+lightgray*16,'Modem');
-	mi:=TMenuInput.create(screen);
-	bottomline('Press F7 for values or type a custom value.');
-	with mi do begin
-	fg:=yellow;
-	bg:=red;
-	selfg:=white;
-	selbg:=blue;
-	autocomplete:=true;
-	casesensitive:=true;
-	list.add('RTTY');
-	list.add('CW');
-	list.add('QPSK31');
-	list.add('QPSK63');
-	list.add('QPSK125');
-	list.add('QPSK250');
-	list.add('QPSK500');
-	list.add('PSK125R');
-	list.add('PSK250R');
-	list.add('PSK500R');
-	list.add('PSK1000R');
-	list.add('MT63-500S');
-	list.add('MT63-500L');
-	list.add('MT63-1KS');
-	list.add('MT63-1KL');
-	list.add('MT63-2KS');
-	list.add('MT63-2KL');
-	list.add('BPSK31');
-	list.add('BPSK63');
-	list.add('BPSK125');
-	list.add('BPSK250');
-	list.add('BPSK500');
-	list.add('MFSK16');
-	list.add('MFSK4');
-	list.add('MFSK8');
-	list.add('MFSK11');
-	list.add('MFSK22');
-	list.add('MFSK32');
-	list.add('MFSK64');
-	list.add('MFSK128');
-	list.add('DOMX4');
-	list.add('DOMX8');
-	list.add('DOMX11');
-	list.add('DOMX22');
-	list.add('DOMX44');
-	list.add('DOMX88');
-	list.add('DOMX5');
-	list.add('Olivia-4-250');
-	list.add('Olivia-8-250');
-	list.add('Olivia-4-500');
-	list.add('Olivia-8-500');
-	list.add('Olivia-16-500');
-	list.add('Olivia-8-1K');
-	list.add('Olivia-16-1K');
-	list.add('Olivia-32-1K');
-	list.add('Olivia-64-1K');
-	itemscount:=10;
-	
-	modem:=GetStr (xi+1, yi+2, 21, 21, 1,modem);
-	if modem<>'' then SaveValueToConfigFile('transmit','modem',modem);
-	if modem<>'' then Fldigi_SetModex(modem);
-	end;
-	mi.Destroy;
-	
-end;
+Procedure tfpchamchat.modemmenu;
+
+Var 
+  mi: tmenuinput;
+  xi,yi: byte;
+Begin
+  xi := 9;
+  yi := 8;
+  simplebox(screen,xi,yi,22,3,red+lightgray*16,4);
+  addshadow(screen,xi,yi,22,3,darkgray+darkgray*16);
+  screen.writexy(15,yi+1,black+lightgray*16,'Modem');
+  mi := TMenuInput.create(screen);
+  bottomline('Press F7 for values or type a custom value.');
+  With mi Do
+    Begin
+      fg := yellow;
+      bg := red;
+      selfg := white;
+      selbg := blue;
+      autocomplete := true;
+      casesensitive := true;
+      list.add('RTTY');
+      list.add('CW');
+      list.add('QPSK31');
+      list.add('QPSK63');
+      list.add('QPSK125');
+      list.add('QPSK250');
+      list.add('QPSK500');
+      list.add('PSK125R');
+      list.add('PSK250R');
+      list.add('PSK500R');
+      list.add('PSK1000R');
+      list.add('MT63-500S');
+      list.add('MT63-500L');
+      list.add('MT63-1KS');
+      list.add('MT63-1KL');
+      list.add('MT63-2KS');
+      list.add('MT63-2KL');
+      list.add('BPSK31');
+      list.add('BPSK63');
+      list.add('BPSK125');
+      list.add('BPSK250');
+      list.add('BPSK500');
+      list.add('MFSK16');
+      list.add('MFSK4');
+      list.add('MFSK8');
+      list.add('MFSK11');
+      list.add('MFSK22');
+      list.add('MFSK32');
+      list.add('MFSK64');
+      list.add('MFSK128');
+      list.add('DOMX4');
+      list.add('DOMX8');
+      list.add('DOMX11');
+      list.add('DOMX22');
+      list.add('DOMX44');
+      list.add('DOMX88');
+      list.add('DOMX5');
+      list.add('Olivia-4-250');
+      list.add('Olivia-8-250');
+      list.add('Olivia-4-500');
+      list.add('Olivia-8-500');
+      list.add('Olivia-16-500');
+      list.add('Olivia-8-1K');
+      list.add('Olivia-16-1K');
+      list.add('Olivia-32-1K');
+      list.add('Olivia-64-1K');
+      itemscount := 10;
+
+      modem := GetStr (xi+1, yi+2, 21, 21, 1,modem);
+      If modem<>'' Then SaveValueToConfigFile('transmit','modem',modem);
+      If modem<>'' Then Fldigi_SetModex(modem);
+    End;
+  mi.Destroy;
+
+End;
 
 
-procedure tfpchamchat.menu;
-begin
+Procedure tfpchamchat.menu;
+Begin
   screen.getscreenimage(1,1,screenwidth,screenheight,image);
   appmenu;
   screen.PutScreenImage (Image);
   bottomline('Press ESC for menu...');
-end;
+End;
 
 Function pathchar(path:utf8string): utf8string;
 Begin
@@ -761,24 +925,28 @@ Begin
 End;
 
 Function tfpchamchat.transmittext(strs: String): boolean;
+
 Var 
   tmp: string;
   i: integer;
   hash: string;
-  ouststr:string;
+  ouststr: string;
 Begin
-	if (modem='RTTY') or (modem='CW') then ouststr:=uppercase(strs) else
-	ouststr:=strs;
-	if lowercase(encrypt)='yes' then begin
-		ouststr:=blowen(strs,key);
-		ouststr:=EncodeStringBase64(ouststr);
-		ouststr:='/ENC/'+ouststr;
-	end else ouststr:='/MSG/'+ouststr;
-  tmp:=format(time_format,[inttostr(CurDateDos)]);
-  if userid<>'' then tmp:=tmp+'/FROM/'+userid;
-  if groupid<>'' then tmp:=tmp+'/GROUP/'+groupid;
-  tmp:=tmp+ouststr;
-  hash:=uppercase(MD5print(MD5String(tmp)));
+  If (modem='RTTY') Or (modem='CW') Then ouststr := uppercase(strs)
+  Else
+    ouststr := strs;
+  If lowercase(encrypt)='yes' Then
+    Begin
+      ouststr := blowen(strs,key);
+      ouststr := EncodeStringBase64(ouststr);
+      ouststr := '/ENC/'+ouststr;
+    End
+  Else ouststr := '/MSG/'+ouststr;
+  tmp := format(time_format,[inttostr(CurDateDos)]);
+  If userid<>'' Then tmp := tmp+'/FROM/'+userid;
+  If groupid<>'' Then tmp := tmp+'/GROUP/'+groupid;
+  tmp := tmp+ouststr;
+  hash := uppercase(MD5print(MD5String(tmp)));
   tmp := vox_padding+padding+format(md5_format,[hash])+tmp+eot+'^r';
   appendmsg(tmp);
   Fldigi_ClearTx;
@@ -790,445 +958,570 @@ Begin
       Fldigi_StartTx;
       i := i+1;
     End;
-  lastmd5:=hash;
+  lastmd5 := hash;
   //disablewhiletransmit(false);
   //edit1.SetFocus;
   //Fldigi_StopTx;
 End;
 
-Function tfpchamchat.parseincomingtext(mes:string):string;
-var 
-  i:integer;
-  incoming:string;
-begin
-   i:=pos(lowercase(eot),lowercase(mes));     
-   if i>0 then begin
-     incoming:=copy(mes,1,i-1);
-     parsebuf:='';
-     Fldigi_Clearrx;
-   end;
-   i:=pos(lowercase(padding),lowercase(incoming));     
-   if i>0 then begin
-     incoming:=copy(incoming,i+length(padding),length(incoming)-i-length(padding)+1);
-     //delete(parsebuf,1,length(padding));
-   end;
-   rxbuf:='';
-   result:=incoming;
-end;
+Function tfpchamchat.parseincomingtext(mes:String): string;
 
-function tfpchamchat.getmd5(mes:string):string;
-var
+Var 
+  i: integer;
+  incoming: string;
+Begin
+  i := pos(lowercase(eot),lowercase(mes));
+  If i>0 Then
+    Begin
+      incoming := copy(mes,1,i-1);
+      parsebuf := '';
+      Fldigi_Clearrx;
+    End;
+  i := pos(lowercase(padding),lowercase(incoming));
+  If i>0 Then
+    Begin
+      incoming := copy(incoming,i+length(padding),length(incoming)-i-length(padding)+1);
+      //delete(parsebuf,1,length(padding));
+    End;
+  rxbuf := '';
+  result := incoming;
+End;
+
+Function tfpchamchat.getmd5(mes:String): string;
+
+Var 
   RegexObj: TRegExpr;
-begin
+Begin
   RegexObj := TRegExpr.Create;
   RegexObj.Expression := '([A-F]|[0-9]|[a-f]){32}';
   RegexObj.Exec(mes);
-  result:=uppercase(regexobj.match[0]);
+  result := uppercase(regexobj.match[0]);
   RegexObj.Free;
-end;
+End;
 
-function tfpchamchat.gettime(mes:string):string;
-var
+Function tfpchamchat.gettime(mes:String): string;
+
+Var 
   RegexObj: TRegExpr;
-begin
+Begin
   RegexObj := TRegExpr.Create;
   RegexObj.Expression := '[0-9]{10}';
   RegexObj.Exec(mes);
-  result:=regexobj.match[0];
+  result := regexobj.match[0];
   RegexObj.Free;
-end;
+End;
 
 Procedure tfpchamchat.rxonTimer(Sender : TObject);
 
 Var 
   Dd : TDateTime;
   rxc: char;
-  i:integer;
-  s,md5,dostime,tmp,hash:string;
-  msg:thcmessage;
+  i: integer;
+  s,md5,dostime,tmp,hash: string;
+  msg: thcmessage;
 
 Begin
   Dd := Now-N;
-   N := Now;
+  N := Now;
   //Writeln(FormatDateTime('ss.zzz',Dd),')');
-  If Fldigi_IsRunning and fldigiisrunning=false then begin 
-		Fldigi_AbortTx;
-		Fldigi_SetModex(modem);
-		Fldigi_ClearRx;
-		Fldigi_ClearTx;
-		fldigiisrunning:=true;
-	end;
+  If Fldigi_IsRunning And fldigiisrunning=false Then
+    Begin
+      Fldigi_AbortTx;
+      Fldigi_SetModex(modem);
+      Fldigi_ClearRx;
+      Fldigi_ClearTx;
+      fldigiisrunning := true;
+    End;
 
   rxbuf := rxbuf + Fldigi_GetRxString;
-  for i := 1 to Length(rxbuf) do
-        begin
-          rxc := rxbuf[i];
-          if rxc > #127 then
-            parsebuf := parsebuf + utf8encode(rxc)
-          else if rxc >= #32 then
-            parsebuf := parsebuf + rxc;
-        end;
-   s:=parseincomingtext(parsebuf);
-   if s<>'' then begin
-	   
-	   md5:=getmd5(s);
-	   if uppercase(md5)=uppercase(lastmd5) then begin
-			msg.msg:=s;
-			appendincoming(msg.msg);
-			screen.clearscreen;
-			msg.time:=gettime(s);
-			msg.md5:=md5;
-		   //writeln('Time:'+dostime);
-		   s:=strreplace(s,format(md5_format,[md5]),'');
-		   writeln(msg.md5);
-		   //tmp:=format(time_format,[inttostr(CurDateDos)])+ouststr;
-	       hash:=uppercase(MD5print(MD5String(s)));
-		   if hash<>msg.md5 then writeln('HASH doesn''t match: '+hash);
-		   //writeln('MD5:'+md5);
-		   s:=strreplace(s,format(time_format,[dostime]),'');
-		   writeln('Date: '+DateDos2Str(strs2i(msg.time),2));
-		   writeln('Time: '+TimeDos2Str(strs2i(msg.time),2));
-		   i:=pos('/ENC/',s);
-		   msg.encode:=false;
-		   if i>0 then begin
-		     //s:=strreplace(s,'/ENC/','');
-		     msg.encode:=true;
-		     //writeln(copy(s,i+5,length(s)-i+5));
-		     msg.decoded:=DecodeStringBase64(copy(s,i+5,length(s)-i+5));
-		     //writeln(msg.decoded);
-		     msg.decoded:=blowde(msg.decoded,key);
-		     writeln('Decoded msg: '+msg.decoded);
-		   end;
-		   i:=pos('/GROUP/',s);
-		   if i>0 then begin
-		     
-		     msg.group:=copy(s,i+7,length(s)-i+7);
-		     msg.group:=copy(msg.group,1,pos('/',msg.group)-1);
-		     writeln('Group: '+msg.group);
-		     s:=strreplace(s,'/GROUP/','');
-		   end;
-		   i:=pos('/MSG/',s);
-		   if i>0 then begin
-		     writeln('Message: '+copy(s,i+5,length(s)-i+5));
-		     s:=strreplace(s,'/MSG/','');
-		   end;
-		   i:=pos('/TO/',s);
-		   if i>0 then begin
-			msg.msgto:=copy(s,i+4,length(s)-i+4);
-			msg.msgto:=copy(msg.msgto,1,pos('/',msg.msgto)-1);
-		    writeln('Recepient: '+msg.msgto); 
-		    s:=strreplace(s,'/MSG/','');
-		   end;
-		   bottomline('Press ESC for menu...');
-		   screen.CursorXY (X, Y);
-	   end;
-   end;
+  For i := 1 To Length(rxbuf) Do
+    Begin
+      rxc := rxbuf[i];
+      If rxc > #127 Then
+        parsebuf := parsebuf + utf8encode(rxc)
+      Else If rxc >= #32 Then
+             parsebuf := parsebuf + rxc;
+    End;
+  s := parseincomingtext(parsebuf);
+  If s<>'' Then
+    Begin
+
+      md5 := getmd5(s);
+      If uppercase(md5)=uppercase(lastmd5) Then
+        Begin
+          msg.msg := s;
+          appendincoming(msg.msg);
+          screen.clearscreen;
+          msg.time := gettime(s);
+          msg.md5 := md5;
+          //writeln('Time:'+dostime);
+          s := strreplace(s,format(md5_format,[md5]),'');
+          writeln(msg.md5);
+          //tmp:=format(time_format,[inttostr(CurDateDos)])+ouststr;
+          hash := uppercase(MD5print(MD5String(s)));
+          If hash<>msg.md5 Then writeln('HASH doesn''t match: '+hash);
+          //writeln('MD5:'+md5);
+          s := strreplace(s,format(time_format,[dostime]),'');
+          writeln('Date: '+DateDos2Str(strs2i(msg.time),2));
+          writeln('Time: '+TimeDos2Str(strs2i(msg.time),2));
+          i := pos('/ENC/',s);
+          msg.encode := false;
+          If i>0 Then
+            Begin
+              //s:=strreplace(s,'/ENC/','');
+              msg.encode := true;
+              //writeln(copy(s,i+5,length(s)-i+5));
+              msg.decoded := DecodeStringBase64(copy(s,i+5,length(s)-i+5));
+              //writeln(msg.decoded);
+              msg.decoded := blowde(msg.decoded,key);
+              writeln('Decoded msg: '+msg.decoded);
+            End;
+          i := pos('/GROUP/',s);
+          If i>0 Then
+            Begin
+
+              msg.group := copy(s,i+7,length(s)-i+7);
+              msg.group := copy(msg.group,1,pos('/',msg.group)-1);
+              writeln('Group: '+msg.group);
+              s := strreplace(s,'/GROUP/','');
+            End;
+          i := pos('/MSG/',s);
+          If i>0 Then
+            Begin
+              writeln('Message: '+copy(s,i+5,length(s)-i+5));
+              s := strreplace(s,'/MSG/','');
+            End;
+          i := pos('/TO/',s);
+          If i>0 Then
+            Begin
+              msg.msgto := copy(s,i+4,length(s)-i+4);
+              msg.msgto := copy(msg.msgto,1,pos('/',msg.msgto)-1);
+              writeln('Recepient: '+msg.msgto);
+              s := strreplace(s,'/MSG/','');
+            End;
+          bottomline('Press ESC for menu...');
+          screen.CursorXY (X, Y);
+        End;
+    End;
 End;
 
 Procedure tfpchamchat.ReDraw;
-  Var
-    T : String;
-  Begin
-    T := Copy(Str, Junk, Field);
 
-   
-    screen.WriteXY  (X, Y, ffg+fbg*16, T);
-    screen.WriteXY  (X + Length(T), Y, fselfg+blue*16, strRep(FillChar, Field - Length(T)));
-   
-    screen.CursorXY (X + CurPos - 1, screen.CursorY);
-  End;
-  
+Var 
+  T : String;
+Begin
+  T := Copy(Str, Junk, Field);
+
+
+  screen.WriteXY  (X, Y, ffg+fbg*16, T);
+  screen.WriteXY  (X + Length(T), Y, fselfg+blue*16, strRep(FillChar, Field - Length(T)));
+
+  screen.CursorXY (X + CurPos - 1, screen.CursorY);
+End;
+
 Procedure tfpchamchat.ReDrawPart;
-  Var
-    T : String;
-  Begin
-    T := Copy(Str, StrPos, (Field - CurPos + 1));
 
-    screen.WriteXY  (screen.CursorX, Y, ffg+fbg*16, T);
-    screen.WriteXY  (screen.CursorX + Length(T), Y, fselfg+blue*16, strRep(FillChar, (Field - CurPos + 1) - Length(T)));
+Var 
+  T : String;
+Begin
+  T := Copy(Str, StrPos, (Field - CurPos + 1));
 
-    screen.CursorXY (X + CurPos - 1, Y);
-  End;
+  screen.WriteXY  (screen.CursorX, Y, ffg+fbg*16, T);
+  screen.WriteXY  (screen.CursorX + Length(T), Y, fselfg+blue*16, strRep(FillChar, (Field - CurPos +
+                                                                         1) - Length(T)));
 
-  Procedure tfpchamchat.ScrollRight;
-  Begin
-    Inc (Junk);
-    If Junk > Length(Str) Then Junk := Length(Str);
-    If Junk > Len then Junk := Len;
-    CurPos := StrPos - Junk + 1;
-    ReDraw;
-  End;
+  screen.CursorXY (X + CurPos - 1, Y);
+End;
 
-  Procedure tfpchamchat.ScrollLeft;
-  Begin
-    If Junk > 1 Then Begin
+Procedure tfpchamchat.ScrollRight;
+Begin
+  Inc (Junk);
+  If Junk > Length(Str) Then Junk := Length(Str);
+  If Junk > Len Then Junk := Len;
+  CurPos := StrPos - Junk + 1;
+  ReDraw;
+End;
+
+Procedure tfpchamchat.ScrollLeft;
+Begin
+  If Junk > 1 Then
+    Begin
       Dec (Junk);
       CurPos := StrPos - Junk + 1;
       ReDraw;
     End;
-  End;
+End;
 
-procedure tfpchamchat.endkeyf;
-begin
+Procedure tfpchamchat.endkeyf;
+Begin
   StrPos := Length(Str) + 1;
   Junk   := Length(Str) - Field + 1;
   If Junk < 1 Then Junk := 1;
   CurPos := StrPos - Junk + 1;
   ReDraw;
-end;
+End;
 
-  Procedure tfpchamchat.Add_Char (Chr : Char);
-  var
-    i:integer;
-    s1,s2:string;
-  Begin
-    autostr:='';
-    If Length(Str) >= Len Then Exit;
+Procedure tfpchamchat.Add_Char (Chr : Char);
 
-    If (CurPos >= Field) and (Field <> Len) Then ScrollRight;
+Var 
+  i: integer;
+  s1,s2: string;
+Begin
+  autostr := '';
+  If Length(Str) >= Len Then Exit;
 
-    Insert (Chr, Str, StrPos);
-    If StrPos < Length(Str) Then ReDrawPart;
+  If (CurPos >= Field) And (Field <> Len) Then ScrollRight;
 
-    Inc (StrPos);
-    Inc (CurPos);
+  Insert (Chr, Str, StrPos);
+  If StrPos < Length(Str) Then ReDrawPart;
 
-    screen.WriteXY(screen.CursorX, screen.CursorY, ffg+fbg*16, Chr);
-    
-    if auto then
-      if flist.count>0 then begin
-        for i:=0 to flist.count-1 do begin
-            if fcase=false then begin
-              s1:=uppercase(str);
-              s2:=uppercase(flist[i]);
-            end else begin
-              s1:=str;
-              s2:=flist[i];
-            end;
-            if pos(s1,s2)=1 then begin
-            autostr:=copy(flist[i],strpos,length(flist[i])-strpos+1);
-            if field>curpos then
-              screen.writexy(x+strpos-1,y,8+fbg*16,copy(autostr,1,field-curpos))
-              else
-              screen.writexy(x+strpos-1,y,8+fbg*16,autostr);
-            break;
-          end;
-        end;
-      end;
+  Inc (StrPos);
+  Inc (CurPos);
 
-    screen.CursorXY (screen.CursorX + 1, screen.CursorY);
-  End;  
+  screen.WriteXY(screen.CursorX, screen.CursorY, ffg+fbg*16, Chr);
+
+  If auto Then
+    If flist.count>0 Then
+      Begin
+        For i:=0 To flist.count-1 Do
+          Begin
+            If fcase=false Then
+              Begin
+                s1 := uppercase(str);
+                s2 := uppercase(flist[i]);
+              End
+            Else
+              Begin
+                s1 := str;
+                s2 := flist[i];
+              End;
+            If pos(s1,s2)=1 Then
+              Begin
+                autostr := copy(flist[i],strpos,length(flist[i])-strpos+1);
+                If field>curpos Then
+                  screen.writexy(x+strpos-1,y,8+fbg*16,copy(autostr,1,field-curpos))
+                Else
+                  screen.writexy(x+strpos-1,y,8+fbg*16,autostr);
+                break;
+              End;
+          End;
+      End;
+
+  screen.CursorXY (screen.CursorX + 1, screen.CursorY);
+End;
 
 Procedure tfpchamchat.DoRun;
+
+Var 
+  i: byte;
+  tmp: string;
+  term: boolean;
 Begin
-  if lowercase(paramstr(1))='-c' then begin
-    createconfig;
-    halt;
-  end;
-  isexit:=false;
+  If lowercase(paramstr(1))='-c' Then
+    Begin
+      createconfig;
+      halt;
+    End;
+  loadsettings;
+  dir := pathchar(extractfiledir(paramstr(0)));
+  term := false;
+  For i:=0 To paramcount Do
+    Begin
+      tmp := lowercase(paramstr(i));
+      If pos('-u',tmp)>0 Then
+        Begin
+          delete(tmp,1,2);
+          userid := tmp;
+          term := true;
+        End;
+      If pos('-g',tmp)>0 Then
+        Begin
+          delete(tmp,1,2);
+          groupid := tmp;
+          term := true;
+        End;
+      If pos('-m',tmp)>0 Then
+        Begin
+          delete(tmp,1,2);
+          modem := tmp;
+          term := true;
+        End;
+      If pos('-k',tmp)>0 Then
+        Begin
+          delete(tmp,1,2);
+          key := tmp;
+          term := true;
+        End;
+      If pos('-e',tmp)>0 Then
+        Begin
+          delete(tmp,1,2);
+          encrypt := tmp;
+          term := true;
+        End;
+      If pos('-t',tmp)>0 Then
+        Begin
+          delete(tmp,1,2);
+          touserid := tmp;
+          term := true;
+        End;
+      If (pos('-h',tmp)>0) Then // Or (pos('-help',tmp)>0) Or (pos('--help',tmp)>0) Or (pos('/h',tmp)>0) Or (pos('/?',tmp)>0)
+        Begin
+          helpscreen;
+          halt(1);
+        End;
+    End;
+
+  If (term=true) then 
+	if (fldigi_isrunning=true) Then
+    Begin
+      Fldigi_AbortTx;
+      Fldigi_SetModex(modem);
+      Fldigi_ClearRx;
+      Fldigi_ClearTx;
+      transmittext(paramstr(paramcount));
+      halt(0);
+    End
+  Else
+    Begin
+      writeln('[hamchat] FlDigi is not active. Cannot send message. Aborting!');
+      halt(-1);
+    End;
+
+  isexit := false;
   Screen := TOutput.Create(True);
   Input  := TInput.Create;
   enable_ansi_unix;
   screen.getoriginaltermsize;
   Screen.ClearScreen;
-  HideImage  := NIL;
-  dir := pathchar(extractfiledir(paramstr(0)));
-  loadsettings;
-  
+  HideImage  := Nil;
+
   rxtimer := TFPTimer.Create(self);
   rxtimer.interval := 1000;
   rxtimer.ontimer := @rxonTimer;
   rxtimer.starttimer;
-  if fldigi_isrunning=false then textbox(screen, 20, 10, 40, 5, white+green*16, 4,' Warning... ','Fldigi is not active! Run the program to be able to use Hamchat.');
-  flist:=tstringlist.create;
-  textinput:=tdmenuinput.create(screen);
-  with textinput do begin
-	fg:=yellow;
-	bg:=blue;
-	autocomplete:=true;
-	selfg:=yellow;
-	selbg:=lightgray;
-	casesensitive:=false;
-  end;
+  If fldigi_isrunning=false Then textbox(screen, 20, 10, 40, 5, white+green*16, 4,' Warning... ',
+                                  'Fldigi is not active! Run the program to be able to use Hamchat.'
+    );
+  flist := tstringlist.create;
+  textinput := tdmenuinput.create(screen);
+  With textinput Do
+    Begin
+      fg := yellow;
+      bg := blue;
+      autocomplete := true;
+      selfg := yellow;
+      selbg := lightgray;
+      casesensitive := false;
+    End;
   Try
     FTick := 0;
     FCount := 0;
     N := Now;
     bottomline('Press ESC for menu...');
-	screen.TextAttr:=white+green*16;
+    screen.TextAttr := white+green*16;
     screen.cursorxy(1,screenheight-1);
-	screen.ClearEOL;
-	command:='';
-	Str     := '';
-	StrPos  := Length(Str) + 1;
-	Junk    := Length(Str) - Field + 1;
-	If Junk < 1 Then Junk := 1;
-	CurPos  := StrPos - Junk + 1;
+    screen.ClearEOL;
+    command := '';
+    Str     := '';
+    StrPos  := Length(Str) + 1;
+    Junk    := Length(Str) - Field + 1;
+    If Junk < 1 Then Junk := 1;
+    CurPos  := StrPos - Junk + 1;
     screen.CursorXY (X, Y);
-	screen.TextAttr := ffg+fbg*16;
+    screen.TextAttr := ffg+fbg*16;
     Repeat
-    ReDraw;
-	  if input.keypressed then begin
-      c := input.readkey;
-        Case C of
-      #00 : Begin
-              C := input.ReadKey;
+      ReDraw;
+      If input.keypressed Then
+        Begin
+          c := input.readkey;
+          Case C Of 
+            #00 :
+                  Begin
+                    C := input.ReadKey;
 
-              Case C of
-                #66: begin
-                       auto:=not auto;
-                       bb:=tbox.create(screen);
-	                   bb.title:='Info';
-                       if auto then bb.text:='Autocomplete is ON' else bb.text:='Autocomplete is OFF';
-                       bb.shadow:=true;
-                       bb.open((screenwidth div 2) - 13,(screenheight div 2) - 2,26,3,attr,1);
-                       input.keywait(700);
-                       bb.close;
-                       bb.free;
-                     end;
-                #77 : If StrPos < Length(Str) + 1 Then Begin
-                        If (CurPos = Field) and (StrPos < Length(Str)) Then ScrollRight;
-                        Inc (CurPos);
-                        Inc (StrPos);
-                        screen.CursorXY (screen.CursorX + 1, screen.CursorY);
-                      End;
-                #75 : If StrPos > 1 Then Begin
-                        If CurPos = 1 Then ScrollLeft;
-                        Dec (StrPos);
-                        Dec (CurPos);
-                        screen.CursorXY (screen.CursorX - 1, screen.CursorY);
-                      End;
-                #71 : If StrPos > 1 Then Begin
-                        StrPos := 1;
-                        Junk   := 1;
-                        CurPos := 1;
-                        ReDraw;
-                      End;
-                #79 : Begin
-                        endkeyf;
-                      End;
-                #83 : If (StrPos <= Length(Str)) and (Length(Str) > 0) Then Begin
-                        Delete (Str, StrPos, 1);
-                        ReDrawPart;
-                      End;
-                #115: Begin
-                        If (StrPos > 1) and (Str[StrPos] = ' ') or (Str[StrPos - 1] = ' ') Then Begin
-                          If CurPos = 1 Then ScrollLeft;
-                          Dec(StrPos);
-                          Dec(CurPos);
-
-                          While (StrPos > 1) and (Str[StrPos] = ' ') Do Begin
-                            If CurPos = 1 Then ScrollLeft;
-                            Dec(StrPos);
-                            Dec(CurPos);
-                          End;
-                        End;
-
-                        While (StrPos > 1) and (Str[StrPos] <> ' ') Do Begin
-                          If CurPos = 1 Then ScrollLeft;
-                          Dec(StrPos);
-                          Dec(CurPos);
-                        End;
-
-                        While (StrPos > 1) and (Str[StrPos] <> ' ') Do Begin
-                          If CurPos = 1 Then ScrollLeft;
-                          Dec(StrPos);
-                          Dec(CurPos);
-                        End;
-
-                        If (Str[StrPos] = ' ') and (StrPos > 1) Then Begin
-                          Inc(StrPos);
-                          Inc(CurPos);
-                        End;
-
-                        ReDraw;
-                      End;
-                #116: Begin
-                        While StrPos < Length(Str) + 1 Do Begin
-                          If (CurPos = Field) and (StrPos < Length(Str)) Then ScrollRight;
-                          Inc (CurPos);
-                          Inc (StrPos);
-
-                          If Str[StrPos] = ' ' Then Begin
-                            If StrPos < Length(Str) + 1 Then Begin
-                              If (CurPos = Field) and (StrPos < Length(Str)) Then ScrollRight;
-                              Inc (CurPos);
-                              Inc (StrPos);
+                    Case C Of 
+                      #66:
+                           Begin
+                             auto := Not auto;
+                             bb := tbox.create(screen);
+                             bb.title := 'Info';
+                             If auto Then bb.text := 'Autocomplete is ON'
+                             Else bb.text := 'Autocomplete is OFF';
+                             bb.shadow := true;
+                             bb.open((screenwidth Div 2) - 13,(screenheight Div 2) - 2,26,3,attr,1);
+                             input.keywait(700);
+                             bb.close;
+                             bb.free;
+                           End;
+                      #77 : If StrPos < Length(Str) + 1 Then
+                              Begin
+                                If (CurPos = Field) And (StrPos < Length(Str)) Then ScrollRight;
+                                Inc (CurPos);
+                                Inc (StrPos);
+                                screen.CursorXY (screen.CursorX + 1, screen.CursorY);
+                              End;
+                      #75 : If StrPos > 1 Then
+                              Begin
+                                If CurPos = 1 Then ScrollLeft;
+                                Dec (StrPos);
+                                Dec (CurPos);
+                                screen.CursorXY (screen.CursorX - 1, screen.CursorY);
+                              End;
+                      #71 : If StrPos > 1 Then
+                              Begin
+                                StrPos := 1;
+                                Junk   := 1;
+                                CurPos := 1;
+                                ReDraw;
+                              End;
+                      #79 :
+                            Begin
+                              endkeyf;
                             End;
-                            Break;
+                      #83 : If (StrPos <= Length(Str)) And (Length(Str) > 0) Then
+                              Begin
+                                Delete (Str, StrPos, 1);
+                                ReDrawPart;
+                              End;
+                      #115:
+                            Begin
+                              If (StrPos > 1) And (Str[StrPos] = ' ') Or (Str[StrPos - 1] = ' ')
+                                Then
+                                Begin
+                                  If CurPos = 1 Then ScrollLeft;
+                                  Dec(StrPos);
+                                  Dec(CurPos);
+
+                                  While (StrPos > 1) And (Str[StrPos] = ' ') Do
+                                    Begin
+                                      If CurPos = 1 Then ScrollLeft;
+                                      Dec(StrPos);
+                                      Dec(CurPos);
+                                    End;
+                                End;
+
+                              While (StrPos > 1) And (Str[StrPos] <> ' ') Do
+                                Begin
+                                  If CurPos = 1 Then ScrollLeft;
+                                  Dec(StrPos);
+                                  Dec(CurPos);
+                                End;
+
+                              While (StrPos > 1) And (Str[StrPos] <> ' ') Do
+                                Begin
+                                  If CurPos = 1 Then ScrollLeft;
+                                  Dec(StrPos);
+                                  Dec(CurPos);
+                                End;
+
+                              If (Str[StrPos] = ' ') And (StrPos > 1) Then
+                                Begin
+                                  Inc(StrPos);
+                                  Inc(CurPos);
+                                End;
+
+                              ReDraw;
+                            End;
+                      #116:
+                            Begin
+                              While StrPos < Length(Str) + 1 Do
+                                Begin
+                                  If (CurPos = Field) And (StrPos < Length(Str)) Then ScrollRight;
+                                  Inc (CurPos);
+                                  Inc (StrPos);
+
+                                  If Str[StrPos] = ' ' Then
+                                    Begin
+                                      If StrPos < Length(Str) + 1 Then
+                                        Begin
+                                          If (CurPos = Field) And (StrPos < Length(Str)) Then
+                                            ScrollRight;
+                                          Inc (CurPos);
+                                          Inc (StrPos);
+                                        End;
+                                      Break;
+                                    End;
+                                End;
+                              screen.CursorXY (X + CurPos - 1, Y);
+                            End;
+                      Else
+                        If Pos(C, HiChars) > 0 Then
+                          Begin
+                            ExitCode := C;
+                            //Break;
                           End;
+                    End;
+                  End;
+            #08 : If StrPos > 1 Then
+                    Begin
+                      Dec (StrPos);
+                      Delete (Str, StrPos, 1);
+                      If CurPos = 1 Then
+                        ScrollLeft
+                      Else
+                        Begin
+                          screen.CursorXY (screen.CursorX - 1, screen.CursorY);
+                          Dec (CurPos);
+                          ReDrawPart;
                         End;
-                        screen.CursorXY (X + CurPos - 1, Y);
-                      End;
-              Else
-                If Pos(C, HiChars) > 0 Then Begin
+                    End;
+            #09 :
+                  Begin
+                    If autostr<>'' Then str := str+autostr;
+                    strpos := length(str)+1;
+                    curpos := strpos;
+                    redraw;
+                    endkeyf;
+                  End;
+            ^Y  :
+                  Begin
+                    Str    := '';
+                    StrPos := 1;
+                    Junk   := 1;
+                    CurPos := 1;
+                    ReDraw;
+                  End;
+            #13:
+                 Begin
+                   If strstripb(str,' ')<>'' Then transmittext(str);
+                   str := '';
+                   StrPos  := Length(Str) + 1;
+                   Junk    := Length(Str) - Field + 1;
+                   If Junk < 1 Then Junk := 1;
+                   CurPos  := StrPos - Junk + 1;
+                   screen.CursorXY (X, Y);
+                 End;
+            #3: isexit := true;
+            #27,#196,#140,#178: menu;
+            #32..
+            #126: Case Mode Of 
+                    0 : If C In ['0'..'9', '-'] Then Add_Char(C);
+                    1 : Add_Char (C);
+                    2 : Add_Char (UpCase(C));
+                    3 : If (C > '/') And (C < ':') Then
+                          Case StrPos Of 
+                            2,5 :
+                                  Begin
+                                    Add_Char (C);
+                                    Add_Char ('/');
+                                  End;
+                            3,6 :
+                                  Begin
+                                    Add_Char ('/');
+                                    Add_Char (C);
+                                  End;
+                            Else
+                              Add_Char (Ch);
+                          End;
+                  End;
+            Else
+              If Pos(C, LoChars) > 0 Then
+                Begin
                   ExitCode := C;
                   //Break;
                 End;
-              End;
-            End;
-      #08 : If StrPos > 1 Then Begin
-              Dec (StrPos);
-              Delete (Str, StrPos, 1);
-              If CurPos = 1 Then
-                ScrollLeft
-              Else Begin
-                screen.CursorXY (screen.CursorX - 1, screen.CursorY);
-                Dec (CurPos);
-                ReDrawPart;
-              End;
-            End;
-      #09 : begin
-              if autostr<>'' then str:=str+autostr;
-              strpos:=length(str)+1;
-              curpos:=strpos;
-              redraw;
-              endkeyf;
-            end;      
-      ^Y  : Begin
-              Str    := '';
-              StrPos := 1;
-              Junk   := 1;
-              CurPos := 1;
-              ReDraw;
-            End;
-      #13: begin
-				if strstripb(str,' ')<>'' then transmittext(str);
-				str:='';
-				StrPos  := Length(Str) + 1;
-				Junk    := Length(Str) - Field + 1;
-				If Junk < 1 Then Junk := 1;
-				CurPos  := StrPos - Junk + 1;
-				screen.CursorXY (X, Y);
-      end;
-      #3: isexit:=true;
-      #27,#196,#140,#178: menu;
-      #32..
-      #126: Case Mode of
-              0 : If C in ['0'..'9', '-'] Then Add_Char(C);
-              1 : Add_Char (C);
-              2 : Add_Char (UpCase(C));
-              3 : If (C > '/') and (C < ':') Then
-                    Case StrPos of
-                      2,5 : Begin
-                              Add_Char (C);
-                              Add_Char ('/');
-                            End;
-                      3,6 : Begin
-                              Add_Char ('/');
-                              Add_Char (C);
-                            End;
-                    Else
-                      Add_Char (Ch);
-                    End;
-            End;
-    Else
-      If Pos(C, LoChars) > 0 Then Begin
-        ExitCode := C;
-        //Break;
-       End;
-    End;
-      end;		
+          End;
+        End;
       Sleep(1);
       CheckSynchronize;
       // Needed, because we are not running in a GUI loop.
@@ -1238,7 +1531,7 @@ Begin
     FreeAndNil(rxTimer);
     flist.free;
     textinput.destroy;
-    
+
 End;
 screen.textattr := 7;
 screen.clearscreen;
@@ -1255,5 +1548,5 @@ Begin
       doRun
     Finally
       Free;
-    End;
+End;
 End.
