@@ -6,13 +6,13 @@
     <vox_padding Value="/ALPHA-BRAVO-ECHO-DELTA"/>
     <md5_format Value="/MD5:%s/"/>
     <time_format Value="/TIME:%s//"/>
-    <modem Value="QPSK500"/>
+    <modem Value="BPSK500"/>
     <encrypt Value="No"/>
   </transmit>
   <user>
     <id Value="xqtr"/>
     <groupid/>
-    <key Value="howdythere"/>
+    <key Value="howdy"/>
   </user>
   <trasmit>
     <encrypt Value="Yes"/>

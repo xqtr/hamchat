@@ -34,7 +34,7 @@ f_textview,
 f_menuline_ver,
 f_menuline_hor,
 f_menuinput,
-f_dmenuinput,
+//f_dmenuinput,
 f_fileutils,
 crt,
 m_DateTime,
@@ -140,6 +140,8 @@ Type
       isexit: boolean;
       inrec:integer;
       outrec:integer;
+      bufferrec:integer;
+      inbuffer:tstringlist;
 
 
       StrPos : Integer;
@@ -155,8 +157,8 @@ Type
       LoChars : string;
       HiChars : string;
 
-      textinput: tdmenuinput;
       command: string;
+      disablewhiletransmit:boolean;
       Image  : TConsoleImageRec;
       HideImage  : ^TConsoleImageRec;
       f,d: byte;
@@ -209,8 +211,8 @@ Type
       Procedure ScrollLeft;
       Procedure endkeyf;
       Procedure Add_Char (Chr : Char);
-      Procedure DoRun;
-      override;
+      procedure redrawbuffer;
+      Procedure DoRun; override;
   End;
 
 Var 
@@ -230,6 +232,29 @@ Var
 	</methodCall>
 
 }
+
+procedure tfpchamchat.redrawbuffer;
+var
+  i:integer;
+begin
+    screen.textattr:=lightgray+black*16;
+    screen.clearscreen;
+    if inbuffer.count<screenheight-1 then begin
+      for i:=0 to inbuffer.count-1 do screen.writeline(inbuffer[i]);
+    end;
+    if inbuffer.count>screenheight-1 then begin
+      screen.cursorxy(1,screenheight-1);
+      i:=inbuffer.count-1;
+      while screen.cursory>=1 do begin
+        screen.writestr(inbuffer[i]);
+        screen.cursorxy(1,screen.cursory-1);
+        i:=i-1;
+      end;
+    end;
+    bottomline('Press ESC for menu...');
+    screen.CursorXY (X, Y);
+end;
+
 procedure tfpchamchat.trimfilerec(filename:string; i:integer);
 var
   sl:tstringlist;
@@ -292,6 +317,8 @@ Begin
   encrypt := getValuefromConfigFile('transmit','encrypt','No');
   inrec:=strs2i(getValuefromConfigFile('options','inbox_reccount','10'));
   outrec:=strs2i(getValuefromConfigFile('options','outbox_reccount','10'));
+  bufferrec:=strs2i(getValuefromConfigFile('options','buffer_lines','200'));
+  disablewhiletransmit:=false;
   If getValuefromConfigFile('options','store_messages','yes')='yes' Then storemsg := true
   Else storemsg := false;
   If fldigi_isrunning Then
@@ -336,6 +363,7 @@ Begin
   SaveValueToConfigFile('transmit','encrypt','No');
   SaveValueToConfigFile('options','inbox_reccount','10');
   SaveValueToConfigFile('options','outbox_reccount','10');
+  SaveValueToConfigFile('options','buffer_lines','200')
 
 End;
 
@@ -947,11 +975,11 @@ Begin
   If groupid<>'' Then tmp := tmp+'/GROUP/'+groupid;
   tmp := tmp+ouststr;
   hash := uppercase(MD5print(MD5String(tmp)));
-  tmp := vox_padding+padding+format(md5_format,[hash])+tmp+eot+'^r';
+  tmp := vox_padding+padding+format(md5_format,[hash])+ouststr+eot+'^r';
   appendmsg(tmp);
   Fldigi_ClearTx;
   i := 1;
-  //disablewhiletransmit(true);
+  disablewhiletransmit:=true;
   While i<=length(tmp) Do
     Begin
       Fldigi_SendTxCharacter(tmp[i]);
@@ -959,7 +987,7 @@ Begin
       i := i+1;
     End;
   lastmd5 := hash;
-  //disablewhiletransmit(false);
+  disablewhiletransmit:=false;
   //edit1.SetFocus;
   //Fldigi_StopTx;
 End;
@@ -1017,7 +1045,7 @@ Var
   Dd : TDateTime;
   rxc: char;
   i: integer;
-  s,md5,dostime,tmp,hash: string;
+  s,bufstr,md5,dostime,tmp,hash: string;
   msg: thcmessage;
 
 Begin
@@ -1032,13 +1060,13 @@ Begin
       Fldigi_ClearTx;
       fldigiisrunning := true;
     End;
-
+  bufstr:='';
   rxbuf := rxbuf + Fldigi_GetRxString;
   For i := 1 To Length(rxbuf) Do
     Begin
       rxc := rxbuf[i];
       If rxc > #127 Then
-        parsebuf := parsebuf + utf8encode(rxc)
+        parsebuf := parsebuf + utf8encode(string(rxc)) //utf8encode(rxc)
       Else If rxc >= #32 Then
              parsebuf := parsebuf + rxc;
     End;
@@ -1056,14 +1084,15 @@ Begin
           msg.md5 := md5;
           //writeln('Time:'+dostime);
           s := strreplace(s,format(md5_format,[md5]),'');
-          writeln(msg.md5);
+          //writeln(msg.md5);
           //tmp:=format(time_format,[inttostr(CurDateDos)])+ouststr;
           hash := uppercase(MD5print(MD5String(s)));
           If hash<>msg.md5 Then writeln('HASH doesn''t match: '+hash);
           //writeln('MD5:'+md5);
           s := strreplace(s,format(time_format,[dostime]),'');
-          writeln('Date: '+DateDos2Str(strs2i(msg.time),2));
-          writeln('Time: '+TimeDos2Str(strs2i(msg.time),2));
+          bufstr:='Date: '+DateDos2Str(strs2i(msg.time),2) + ' Time: '+TimeDos2Str(strs2i(msg.time),2);
+          //writeln('Date: '+DateDos2Str(strs2i(msg.time),2));
+          //writeln('Time: '+TimeDos2Str(strs2i(msg.time),2));
           i := pos('/ENC/',s);
           msg.encode := false;
           If i>0 Then
@@ -1074,7 +1103,8 @@ Begin
               msg.decoded := DecodeStringBase64(copy(s,i+5,length(s)-i+5));
               //writeln(msg.decoded);
               msg.decoded := blowde(msg.decoded,key);
-              writeln('Decoded msg: '+msg.decoded);
+              //writeln('Decoded msg: '+msg.decoded);
+              bufstr:=bufstr+' '+msg.decoded;
             End;
           i := pos('/GROUP/',s);
           If i>0 Then
@@ -1082,13 +1112,15 @@ Begin
 
               msg.group := copy(s,i+7,length(s)-i+7);
               msg.group := copy(msg.group,1,pos('/',msg.group)-1);
-              writeln('Group: '+msg.group);
+              //writeln('Group: '+msg.group);
+              bufstr:=bufstr+'Group: '+msg.group;
               s := strreplace(s,'/GROUP/','');
             End;
           i := pos('/MSG/',s);
           If i>0 Then
             Begin
-              writeln('Message: '+copy(s,i+5,length(s)-i+5));
+              //writeln('Message: '+copy(s,i+5,length(s)-i+5));
+              bufstr:=bufstr+' '+copy(s,i+5,length(s)-i+5);
               s := strreplace(s,'/MSG/','');
             End;
           i := pos('/TO/',s);
@@ -1096,11 +1128,13 @@ Begin
             Begin
               msg.msgto := copy(s,i+4,length(s)-i+4);
               msg.msgto := copy(msg.msgto,1,pos('/',msg.msgto)-1);
-              writeln('Recepient: '+msg.msgto);
+              //writeln('Recepient: '+msg.msgto);
+              bufstr:=bufstr+' To: '+msg.msgto;
               s := strreplace(s,'/MSG/','');
             End;
-          bottomline('Press ESC for menu...');
-          screen.CursorXY (X, Y);
+            inbuffer.add(bufstr);
+            inbuffer.savetofile(dir+'buffer.txt');
+          redrawbuffer;
         End;
     End;
 End;
@@ -1241,7 +1275,8 @@ Begin
           term := true;
         End;
       If pos('-m',tmp)>0 Then
-        Begin
+
+    Begin
           delete(tmp,1,2);
           modem := tmp;
           term := true;
@@ -1303,16 +1338,9 @@ Begin
                                   'Fldigi is not active! Run the program to be able to use Hamchat.'
     );
   flist := tstringlist.create;
-  textinput := tdmenuinput.create(screen);
-  With textinput Do
-    Begin
-      fg := yellow;
-      bg := blue;
-      autocomplete := true;
-      selfg := yellow;
-      selbg := lightgray;
-      casesensitive := false;
-    End;
+  inbuffer := tstringlist.create;
+  if fileexists(dir+'buffer.txt') then inbuffer.loadfromfile(dir+'buffer.txt');
+  redrawbuffer;
   Try
     FTick := 0;
     FCount := 0;
@@ -1483,6 +1511,7 @@ Begin
                   End;
             #13:
                  Begin
+                   if disablewhiletransmit = false then begin
                    If strstripb(str,' ')<>'' Then transmittext(str);
                    str := '';
                    StrPos  := Length(Str) + 1;
@@ -1490,6 +1519,7 @@ Begin
                    If Junk < 1 Then Junk := 1;
                    CurPos  := StrPos - Junk + 1;
                    screen.CursorXY (X, Y);
+                   end else bottomline('Transmitting data. Please wait...');
                  End;
             #3: isexit := true;
             #27,#196,#140,#178: menu;
@@ -1530,13 +1560,13 @@ Begin
     rxTimer.Enabled := False;
     FreeAndNil(rxTimer);
     flist.free;
-    textinput.destroy;
 
 End;
 screen.textattr := 7;
 screen.clearscreen;
 //displayansi('loading.ans',wait);
 screen.free;
+inbuffer.free;
 input.free;
 Terminate;
 End;
